@@ -1,8 +1,9 @@
 import tkinter as tk
+from ttkthemes import ThemedTk
 from views.login_view import LoginView
 def iniciar_sistema():
     # 1. Cria a janela principal escondida do Tkinter
-    root = tk.Tk()
+    root = ThemedTk(theme='arc')
 
     # 2. Chama a nossa View de Login
     app_login = LoginView(root)

@@ -158,9 +158,12 @@ class LoginView:
             if Seguranca.verificar_senha(senha_digitada, usuario.senha):
                 LoggerAuditoria.registrar(usuario.username, "LOGIN", "Usuário acessou o sistema com sucesso.")
                 messagebox.showinfo("Sucesso", f"Bem-vindo(a), {usuario.username}!")
-                # 1. Limpando todos os elementos do Login da tela
+                
+                # 1. Limpamos todos os elementos do Login da tela
                 for widget in self.root.winfo_children():
                     widget.destroy()
+                
+                # 2. Chamamos a Janela Principal passando o usuário!
                 from views.main_view import MainView
                 MainView(self.root, usuario)
             else:
