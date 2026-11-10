@@ -1,6 +1,7 @@
 import psycopg2
 import configparser
 import os
+from util.logger import LoggerAuditoria
 
 class DatabaseConnection:
     @staticmethod
@@ -13,7 +14,7 @@ class DatabaseConnection:
         caminho_arquivo = 'config_banco.properties'
 
         if not os.path.exists(caminho_arquivo):
-            print(f"ERRO: Arquivo {caminho_arquivo} não encontrado!")
+            LoggerAuditoria.erro(f"ERRO: Arquivo {caminho_arquivo} não encontrado!")
             return None
 
         try:
@@ -45,5 +46,5 @@ class DatabaseConnection:
 
             return conexao
         except Exception as e:
-            print(f'Erro ao conextar à Base de Dados em Servidor {ip_servidor}: {e}')
+            LoggerAuditoria.erro(f'Erro ao conextar à Base de Dados em Servidor {ip_servidor}: {e}')
             return None

@@ -24,3 +24,20 @@ class LoggerAuditoria:
                 f.write(mensagem)
         except Exception as e:
             print(f'Erro ao gravar log local: {e}')
+
+    @staticmethod
+    def erro(detalhes):
+        """
+        Grava erros do sistema (exceções, falhas de conexão) no arquivo de log.
+        """
+        agora = datetime.now()
+        data_hora_str = agora.strftime("%d/%m/%Y - %H:%M:%S")
+        
+        mensagem = f"[{data_hora_str}] SISTEMA | ERRO | DETALHES: {detalhes}\n"
+        nome_ficheiro = "auditoria_proton.log"
+        
+        try:
+            with open(nome_ficheiro, 'a', encoding='utf-8') as f:
+                f.write(mensagem)
+        except:
+            pass # Se até o log falhar, ignoramos silenciosamente para não travar o app
