@@ -241,9 +241,8 @@ class MainView:
             messagebox.showinfo("Buscador", f"Buscando por: {termo}\n(Lógica do DAO em breve!)")
 
     def novo_dedicado(self):
-        messagebox.showinfo("Novo Cliente", "Abrindo tela de cadastro de Dedicado...")
-        # Aqui chamaremos a janela modal de formulário
-
+        from views.form_cliente_view import FromClienteView
+        FromClienteView(self.root, tabela_atualizacao=self.carregar_tabela_dedicados)
     def detalhar_dedicado(self):
         selecionado = self.tabela_dedicado.selection()
         if not selecionado:
