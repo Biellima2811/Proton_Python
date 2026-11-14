@@ -51,7 +51,7 @@ class ClienteDedicadoDAO:
             id_cliente = getattr(cliente, 'id', 0)
 
             if id_cliente == 0:
-                # INSERÇÃO (NOVO CLIENTE) - Agora inclui 'sgbd'
+                # INSERÇÃO (NOVO CLIENTE) - inclui 'sgbd'
                 sql_cliente = """
                     INSERT INTO clientes_dedicados 
                     (cliente, cnpj_cpf, qnt_de_servs, ad, ambiente, vpn, sgbd, criado_por) 
@@ -60,8 +60,8 @@ class ClienteDedicadoDAO:
                 criado_por = 'Sistema'
                 
                 cursor.execute(sql_cliente, (
-                    cliente.nome, cliente.cnpj, cliente.qnt_server, 
-                    cliente.active_directory, cliente.ambiente, cliente.vpn, 
+                    cliente.cliente, cliente.cnpj_cpf, cliente.qnt_de_servs, 
+                    cliente.ad, cliente.ambiente, cliente.vpn, 
                     getattr(cliente, 'sgbd', ''), criado_por
                 ))
                 id_cliente = cursor.fetchone()[0]
@@ -74,8 +74,8 @@ class ClienteDedicadoDAO:
                     WHERE id=%s
                 """
                 cursor.execute(sql_cliente, (
-                    cliente.nome, cliente.cnpj, cliente.qnt_server, 
-                    cliente.active_directory, cliente.ambiente, cliente.vpn, 
+                    cliente.cliente, cliente.cnpj_cpf, cliente.qnt_de_servs, 
+                    cliente.ad, cliente.ambiente, cliente.vpn, 
                     getattr(cliente, 'sgbd', ''), id_cliente
                 ))
                 
@@ -86,11 +86,11 @@ class ClienteDedicadoDAO:
             if lista_servidores:
                 sql_servidor = """
                     INSERT INTO servidores_clientes_dedicados 
-                    (cliente_id, tipo_servidor, hostname, ip_privado, ip_publico, usuario, senha) 
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    (cliente_id, tipo_servidor, hostname, ip_privado, ip_publico, porta, usuario, senha) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """
                 dados_servidores = [
-                    (id_cliente, serv.tipo, serv.hostname, serv.ip_privado, serv.ip_publico, serv.usuario, serv.senha) 
+                    (id_cliente, serv.tipo, serv.hostname, serv.ip_privado, serv.ip_publico, getattr(serv, 'porta', ''), serv.usuario, serv.senha) 
                     for serv in lista_servidores
                 ]
                 cursor.executemany(sql_servidor, dados_servidores)

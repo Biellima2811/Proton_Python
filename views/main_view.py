@@ -241,8 +241,9 @@ class MainView:
             messagebox.showinfo("Buscador", f"Buscando por: {termo}\n(Lógica do DAO em breve!)")
 
     def novo_dedicado(self):
-        from views.form_cliente_view import FromClienteView
-        FromClienteView(self.root, tabela_atualizacao=self.carregar_tabela_dedicados)
+        from views.form_cliente_view import FormClienteView
+        FormClienteView(self.root, tabela_atualizacao=self.carregar_tabela_dedicados)
+    
     def detalhar_dedicado(self):
         selecionado = self.tabela_dedicado.selection()
         if not selecionado:
