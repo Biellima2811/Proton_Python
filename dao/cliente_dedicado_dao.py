@@ -34,64 +34,63 @@ class ClienteDedicadoDAO:
             finally:
                 conexao.close()
         return clientes
-
+    
     def salvar_com_servidores(self, cliente, lista_servidores):
         """
-        Salva o cliente e a sua lista de servidores usando uma transação.
-        Se cliente.id == 0, é um novo registro. Senão, é uma edição.
+        Salva o cliente (Aba 1) e a sua lista de servidores (Aba 2) usando uma transação.
         """
         conexao = DatabaseConnection.get_connection()
         if not conexao:
             raise Exception("Falha ao conectar com o banco de dados.")
 
         try:
-            # 1. Inicia a transação (se der erro, cancela tudo)
+            # 1. Inicia a transação
             conexao.autocommit = False
             cursor = conexao.cursor()
 
-            id_cliente = cliente.id
+            id_cliente = getattr(cliente, 'id', 0)
 
             if id_cliente == 0:
-                # INSERÇÃO (NOVO CLIENTE)
-                # Usamos RETURNING id para o banco nos devolver qual o ID que acabou de ser gerado
+                # INSERÇÃO (NOVO CLIENTE) - Agora inclui 'sgbd'
                 sql_cliente = """
-                    INSERT INTO clientes_dedicados (cliente, cnpj_cpf, qnt_de_servs, ad, ambiente, vpn, criado_por) 
-                    VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+                    INSERT INTO clientes_dedicados 
+                    (cliente, cnpj_cpf, qnt_de_servs, ad, ambiente, vpn, sgbd, criado_por) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
                 """
-                # No futuro, podemos pegar o usuário logado via variável global. Por agora, 'Sistema'.
                 criado_por = 'Sistema'
                 
                 cursor.execute(sql_cliente, (
-                    cliente.cliente, cliente.cnpj_cpf, cliente.qnt_de_servs, 
-                    cliente.ad, cliente.ambiente, cliente.vpn, criado_por
+                    cliente.nome, cliente.cnpj, cliente.qnt_server, 
+                    cliente.active_directory, cliente.ambiente, cliente.vpn, 
+                    getattr(cliente, 'sgbd', ''), criado_por
                 ))
-                id_cliente = cursor.fetchone()[0] # Pega o ID devolvido
+                id_cliente = cursor.fetchone()[0]
                 
             else:
-                # ATUALIZAÇÃO (EDIÇÃO DE CLIENTE EXISTENTE)
+                # ATUALIZAÇÃO (EDIÇÃO)
                 sql_cliente = """
                     UPDATE clientes_dedicados 
-                    SET cliente=%s, cnpj_cpf=%s, qnt_de_servs=%s, ad=%s, ambiente=%s, vpn=%s 
+                    SET cliente=%s, cnpj_cpf=%s, qnt_de_servs=%s, ad=%s, ambiente=%s, vpn=%s, sgbd=%s 
                     WHERE id=%s
                 """
                 cursor.execute(sql_cliente, (
-                    cliente.cliente, cliente.cnpj_cpf, cliente.qnt_de_servs, 
-                    cliente.ad, cliente.ambiente, cliente.vpn, id_cliente
+                    cliente.nome, cliente.cnpj, cliente.qnt_server, 
+                    cliente.active_directory, cliente.ambiente, cliente.vpn, 
+                    getattr(cliente, 'sgbd', ''), id_cliente
                 ))
                 
-                # Para garantir que os servidores não fiquem duplicados na edição,
-                # apagamos os antigos e gravamos os novos (como estava no JavaFX)
+                # Apagamos os servidores antigos antes de inserir a lista nova
                 cursor.execute("DELETE FROM servidores_clientes_dedicados WHERE cliente_id = %s", (id_cliente,))
 
-            # 2. Gravar a lista de servidores vinculados a este cliente
+            # 2. Gravar a lista de servidores (Aba 2) - Agora com TODOS os campos
             if lista_servidores:
                 sql_servidor = """
-                    INSERT INTO servidores_clientes_dedicados (cliente_id, tipo_servidor, ip_servidor, usuario, senha) 
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO servidores_clientes_dedicados 
+                    (cliente_id, tipo_servidor, hostname, ip_privado, ip_publico, usuario, senha) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """
-                # Usamos executemany para inserir vários de uma vez (mais rápido)
                 dados_servidores = [
-                    (id_cliente, serv.tipo, serv.ip, serv.usuario, serv.senha) 
+                    (id_cliente, serv.tipo, serv.hostname, serv.ip_privado, serv.ip_publico, serv.usuario, serv.senha) 
                     for serv in lista_servidores
                 ]
                 cursor.executemany(sql_servidor, dados_servidores)
@@ -101,12 +100,12 @@ class ClienteDedicadoDAO:
             cursor.close()
 
         except Exception as e:
-            # Se deu qualquer erro no cliente ou no servidor, cancela a gravação
             conexao.rollback()
+            from util.logger import LoggerAuditoria
             LoggerAuditoria.erro(f'Erro na transação de salvar cliente dedicado: {e}')
-            raise Exception("Falha ao gravar no banco. Transação revertida.")
+            raise Exception(f"Falha ao gravar no banco. Detalhe: {e}")
         
         finally:
-            # Restaura a conexão para o modo normal e fecha
-            conexao.autocommit = True
-            conexao.close()
+            if conexao:
+                conexao.autocommit = True
+                conexao.close()
