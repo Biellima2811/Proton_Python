@@ -1,6 +1,13 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import re
+from datetime import datetime
+
+# Importa o calendário
+try:
+    from tkcalendar import DateEntry
+except ImportError:
+    pass # Tratamento feito no decorrer do código se não estiver instalado
 
 class FormClienteView:
          
@@ -35,6 +42,7 @@ class FormClienteView:
         self.var_vpn = tk.StringVar() 
         self.var_sgbd = tk.StringVar() 
         self.var_ad = tk.StringVar()
+        self.var_data = tk.StringVar(value=datetime.now().strftime("%d/%m/%Y"))
 
         # Variáveis Aba 2
         self.var_serv_tipo = tk.StringVar()
@@ -45,8 +53,64 @@ class FormClienteView:
         self.var_serv_user = tk.StringVar()
         self.var_serv_pass = tk.StringVar()
 
-        self.construir_interface()
+        # Variáveis Aba 3 (SGBD)
+        self.var_sgbd = tk.StringVar() 
+        self.var_sgbd_versao = tk.StringVar()
+        self.var_sgbd_user = tk.StringVar()
+        self.var_sgbd_senha = tk.StringVar()
+        self.var_sgbd_hqbird = tk.BooleanVar()
 
+        self.construir_interface()
+        self.configurar_menu_contexto()
+
+        if self.cliente_id:
+            self.carregar_dados_edicao()
+    
+    # ==========================================
+    # MENU DE CONTEXTO (COPIAR, COLAR, RECORTAR)
+    # ==========================================
+    def configurar_menu_contexto(self):
+        self.menu_contexto = tk.Menu(self.janela, tearoff=0)
+        self.menu_contexto.add_command(label='Recorta', command=self.recortar_texto)
+        self.menu_contexto.add_command(label='Copiar', command=self.copiar_texto)
+        self.menu_contexto.add_command(label='Colar', command=self.colar_texto)
+
+        # Aplica o clique direito (Button-3) a todos os campos de texto do formulario
+        self.janela.bind_class("TEntry", "<Button-3>", self.mostrar_menu_contexto)
+        self.janela.bind_class("Entry", "<Button-3>", self.mostrar_menu_contexto)
+        self.janela.bind_class("TCombobox", "<Button-3>", self.mostrar_menu_contexto)
+    
+    def mostrar_menu_contexto(self, event):
+        self.widget_atual = event.widget
+        self.widget_atual.focus()
+        self.menu_contexto.tk_popup(event.x_root, event.y_root)
+
+    def copiar_texto(self):
+        try:
+            texto = self.widget_atual.selection_get()
+            self.janela.clipboard_clear()
+            self.janela.clipboard_append(texto)
+        except tk.TclError:
+            pass # Se não houver nada selecionado
+
+    def colar_texto(self):
+        try:
+            texto = self.janela.clipboard_get()
+            if self.widget_atual.select_present():
+                self.widget_atual.delete(tk.SEL_FIRST, tk.SEL_LAST)
+            self.widget_atual.insert(tk.INSERT, texto)
+        except tk.TclError:
+            pass
+
+    def recortar_texto(self):
+        try:
+            texto = self.widget_atual.selection_get()
+            self.janela.clipboard_clear()
+            self.janela.clipboard_append(texto)
+            self.widget_atual.delete(tk.SEL_FIRST, tk.SEL_LAST)
+        except tk.TclError:
+            pass
+    
     def construir_interface(self):
         self.janela.rowconfigure(0, weight=1)
         self.janela.columnconfigure(0, weight=1)
@@ -68,8 +132,12 @@ class FormClienteView:
         self.aba_serv = tk.Frame(self.notebook, bg="#ffffff")
         self.notebook.add(self.aba_serv, text="Gestão de Servidores / Infra")
 
+        self.aba_sgbd = tk.Frame(self.notebook, bg="#ffffff")
+        self.notebook.add(self.aba_sgbd, text="SGBD")
+
         self.construir_aba_dados()
         self.construir_aba_servidores()
+        self.construir_aba_sgbd()
 
         frame_botoes = tk.Frame(frame_bg, bg="#ffffff")
         frame_botoes.grid(row=3, column=0, sticky='e', padx=20, pady=15)
@@ -83,29 +151,42 @@ class FormClienteView:
     def construir_aba_dados(self):
         self.aba_dados.columnconfigure(0, weight=1)
         self.aba_dados.columnconfigure(1, weight=1)
+        self.aba_dados.columnconfigure(2, weight=1)
 
-        # Campos mais largos
+        # Linha 1: Nome, CNPJ e Calendário
         tk.Label(self.aba_dados, text='Nome / Cliente: ', font=self.fonte_negrito, bg="#ffffff", fg="#495057").grid(row=0, column=0, sticky='w', padx=20, pady=(20,2))
         ttk.Entry(self.aba_dados, textvariable=self.var_nome, font=self.fonte_normal).grid(row=1, column=0, sticky='ew', padx=20, ipadx=4, ipady=4)
 
         tk.Label(self.aba_dados, text='CNPJ / CPF: ', font=self.fonte_negrito, bg="#ffffff", fg="#495057").grid(row=0, column=1, sticky='w', padx=20, pady=(20,2))
         ttk.Entry(self.aba_dados, textvariable=self.var_cnpj_cpf, font=self.fonte_normal).grid(row=1, column=1, sticky='ew', padx=20, ipadx=4, ipady=4)
 
+        tk.Label(self.aba_dados, text="Data Cadastro:", font=self.fonte_negrito, bg="#ffffff", fg="#495057").grid(row=0, column=2, sticky="w", padx=20, pady=(20, 2))
+        
+        try:
+            # Componente de Calendário visual do tkcalendar
+            self.ent_data = DateEntry(self.aba_dados, textvariable=self.var_data, font=self.fonte_normal,
+                                      date_pattern='dd/mm/yyyy', background='#0d6efd', foreground='white', borderwidth=2)
+        except NameError:
+            # Fallback se a biblioteca não foi instalada
+            self.ent_data = ttk.Entry(self.aba_dados, textvariable=self.var_data, font=self.fonte_normal)
+            messagebox.showwarning("Dependência", "Calendário visual não disponível. Instale no terminal: pip install tkcalendar")
+
+        self.ent_data.grid(row=1, column=2, sticky='w', padx=20, ipadx=4, ipady=4)
+
+        # Linha 2: Ambiente e VPN
         tk.Label(self.aba_dados, text="Ambiente:", font=self.fonte_negrito, bg="#ffffff", fg="#495057").grid(row=2, column=0, sticky="w", padx=20, pady=(15, 2))
         cb_amb = ttk.Combobox(self.aba_dados, textvariable=self.var_ambiente, values=['Micro', 'Scaling'], font=self.fonte_normal, state='readonly')
-        cb_amb.grid(row=3, column=0, sticky='w', padx=20, ipady=4)
+        cb_amb.grid(row=3, column=0, sticky='ew', padx=20, ipady=4)
 
         tk.Label(self.aba_dados, text="Possui VPN:", font=self.fonte_negrito, bg="#ffffff", fg="#495057").grid(row=2, column=1, sticky="w", padx=20, pady=(15, 2))
         cb_vpn = ttk.Combobox(self.aba_dados, textvariable=self.var_vpn, values=['Sim', 'Não'], font=self.fonte_normal, state='readonly')
-        cb_vpn.grid(row=3, column=1, sticky='w', padx=20, ipady=4)
+        cb_vpn.grid(row=3, column=1, sticky='ew', padx=20, ipady=4)
 
+        # Linha 3: AD e SGBD
         tk.Label(self.aba_dados, text='Active Diretory (AD):', font=self.fonte_negrito, bg="#ffffff", fg="#495057").grid(row=4, column=0, sticky='w', padx=20, pady=(15,2))
         cb_AD = ttk.Combobox(self.aba_dados, textvariable=self.var_ad, values=['Fortes Tecnologia', 'Autos.Sky'], font=self.fonte_normal, state='readonly')
-        cb_AD.grid(row=5, column=0, sticky='w', padx=20, ipady=4)
+        cb_AD.grid(row=5, column=0, sticky='ew', padx=20, ipady=4)
 
-        tk.Label(self.aba_dados, text='SGBD:', font=self.fonte_negrito, bg="#ffffff", fg="#495057").grid(row=4, column=1, sticky='w', padx=20, pady=(15,2))
-        cb_sgbd = ttk.Combobox(self.aba_dados, textvariable=self.var_sgbd, values=['Firebird', 'MSSQL'], font=self.fonte_normal, state='readonly')
-        cb_sgbd.grid(row=5, column=1, sticky='w', padx=20, ipady=4)
 
     def construir_aba_servidores(self):
         self.aba_serv.columnconfigure(0, weight=1)
@@ -161,11 +242,42 @@ class FormClienteView:
         btn_del = tk.Button(self.aba_serv, text='Remover Servidor Selecionado', font=("Segoe UI", 10, "bold"), bg="#dc3545", fg="white", bd=0, cursor="hand2", command=self.remover_servidor)
         btn_del.grid(row=3, column=0, sticky='w', padx=20, pady=(0,15), ipadx=10, ipady=3)
 
+    def construir_aba_sgbd(self):
+        self.aba_sgbd.columnconfigure(0, weight=1)
+        self.aba_sgbd.columnconfigure(1, weight=1)
+
+        tk.Label(self.aba_sgbd, text="Informações de Acesso ao Banco de Dados", font=("Segoe UI", 12, "bold"), bg="#ffffff", fg="#212529").grid(row=0, column=0, sticky='w', padx=20, pady=(15,10))
+        
+        # SGBD
+        tk.Label(self.aba_sgbd, text='SGBD:', font=self.fonte_negrito, bg="#ffffff", fg="#495057").grid(row=1, column=0, sticky='w', padx=20, pady=(10,2))
+        cb_sgbd = ttk.Combobox(self.aba_sgbd, textvariable=self.var_sgbd, values=['Firebird', 'SQL Server'], font=self.fonte_normal, state='readonly')
+        cb_sgbd.grid(row=2, column=0, sticky='ew', padx=20, ipady=4)
+
+        # Versão
+        tk.Label(self.aba_sgbd, text='Versão:', font=self.fonte_negrito, bg="#ffffff", fg="#495057").grid(row=1, column=1, sticky='w', padx=20, pady=(10,2))
+        cb_versao = ttk.Combobox(self.aba_sgbd, textvariable=self.var_sgbd_versao, values=['2.5', '3.0', '4.0', '5.0', '2012', '2014', '2016', '2019', '2022'], font=self.fonte_normal)
+        cb_versao.grid(row=2, column=1, sticky='ew', padx=20, ipady=4)
+
+        # Usuário
+        tk.Label(self.aba_sgbd, text='Usuário (USER):', font=self.fonte_negrito, bg="#ffffff", fg="#495057").grid(row=3, column=0, sticky='w', padx=20, pady=(15,2))
+        ttk.Entry(self.aba_sgbd, textvariable=self.var_sgbd_user, font=self.fonte_normal).grid(row=4, column=0, sticky='ew', padx=20, ipadx=4, ipady=4)
+
+        # Senha
+        tk.Label(self.aba_sgbd, text='Senha:', font=self.fonte_negrito, bg="#ffffff", fg="#495057").grid(row=3, column=1, sticky='w', padx=20, pady=(15,2))
+        ttk.Entry(self.aba_sgbd, textvariable=self.var_sgbd_senha, font=self.fonte_normal).grid(row=4, column=1, sticky='ew', padx=20, ipadx=4, ipady=4)
+
+        # HQBird
+        chk_hqbird = tk.Checkbutton(self.aba_sgbd, text="Possui HQBird", variable=self.var_sgbd_hqbird, font=self.fonte_negrito, bg="#ffffff", fg="#495057", activebackground="#ffffff")
+        chk_hqbird.grid(row=5, column=0, sticky='w', padx=20, pady=(20,0))
+
     def is_valid_ip(self, ip_str):
-        if not ip_str: 
-            return True 
-        pattern = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-        return re.match(pattern, ip_str) is not None
+        if not ip_str or ip_str.strip() == "":
+             return False
+        return True
+
+    # ==========================================
+    # Funcionalidade
+    # ==========================================
 
     def adicionar_servidor(self):
         tipo = self.var_serv_tipo.get().strip()
@@ -180,12 +292,8 @@ class FormClienteView:
             messagebox.showwarning('Aviso!', 'Preencha o Tipo e o Hostname.', parent=self.janela)
             return
 
-        if not ip_privado and not ip_publico:
-            messagebox.showwarning('Aviso!', 'Preencha pelo menos um IP (Privado ou Público).', parent=self.janela)
-            return
-
         if not self.is_valid_ip(ip_privado) or not self.is_valid_ip(ip_publico):
-            messagebox.showwarning('Aviso!', 'Formato de IP inválido. Exemplo: 192.168.0.1', parent=self.janela)
+            messagebox.showwarning('Aviso!', 'Os campos IP Privado e IP Público são obrigatórios. (Preencha "N/A" se não houver).', parent=self.janela)
             return
 
         if not user or not senha:
@@ -214,8 +322,14 @@ class FormClienteView:
         cnpj = self.var_cnpj_cpf.get().strip()
         ambiente = self.var_ambiente.get().strip()
         vpn_str = self.var_vpn.get().strip()
-        sgbd = self.var_sgbd.get().strip()
         ad = self.var_ad.get().strip()
+
+        # Variáveis da aba SGBD
+        sgbd = self.var_sgbd.get().strip()
+        sgbd_versao = self.var_sgbd_versao.get().strip()
+        sgbd_user = self.var_sgbd_user.get().strip()
+        sgbd_senha = self.var_sgbd_senha.get().strip()
+        sgbd_hqbird = "Sim" if self.var_sgbd_hqbird.get() else "Não"
                  
         if not nome or not cnpj:
             messagebox.showwarning("Aviso", "O nome do cliente e CNPJ/CPF são obrigatórios.", parent=self.janela)
@@ -227,8 +341,8 @@ class FormClienteView:
             self.notebook.select(self.aba_dados)
             return
             
-        if not sgbd or not ad:
-            messagebox.showwarning("Aviso", "O campo de SGBD e AD (Active Directory) são obrigatórios.", parent=self.janela)
+        if not ad:
+            messagebox.showwarning("Aviso", "O campo de AD (Active Directory) é obrigatorio.", parent=self.janela)
             self.notebook.select(self.aba_dados)
             return
 
@@ -254,6 +368,22 @@ class FormClienteView:
             vpn=vpn
         )
         cliente.sgbd = sgbd
+        cliente.sgbd_versao = sgbd_versao
+        cliente.sgbd_user = sgbd_user
+        cliente.sgbd_senha = sgbd_senha
+        cliente.sgbd_hqbird = sgbd_hqbird
+
+        if not sgbd_versao:
+            messagebox.showwarning('Aviso', 'O Campo versão é obrigatorio!')
+            self.notebook.select(self.aba_sgbd)
+            return
+        
+        if not sgbd_user:
+            messagebox.showwarning('Aviso', 'O campo de usuario é obrigatorios')
+            self.notebook.select(self.aba_sgbd)
+            return
+        if not sgbd_senha:
+            messagebox.showwarning('Aviso', 'O campo senha é obrigatorio')
 
         from models.servidor_dedicado import ServidorDedicado
         lista_servidores = []
@@ -283,6 +413,11 @@ class FormClienteView:
             self.var_vpn.set("")
             self.var_sgbd.set("")
             self.var_ad.set("")
+            self.var_sgbd.set("")
+            self.var_sgbd_versao.set("")
+            self.var_sgbd_user.set("")
+            self.var_sgbd_senha.set("")
+            self.var_sgbd_hqbird.set(False)
             
             for item in self.tabela_serv.get_children():
                 self.tabela_serv.delete(item)
@@ -293,3 +428,33 @@ class FormClienteView:
             self.janela.destroy()
         except Exception as e:
             messagebox.showerror("Erro", f"Ocorreu um erro ao guardar:\n{str(e)}", parent=self.janela)
+
+    def carregar_dados_edicao(self):
+        from dao.cliente_dedicado_dao import ClienteDedicadoDAO
+        dao = ClienteDedicadoDAO()
+        cliente = dao.buscar_por_id(self.cliente_id)
+        
+        if cliente:
+            self.janela.title(f'Editar Cliente Dedicado - {cliente["nome"]}')
+            self.var_nome.set(cliente['nome'])
+            self.var_cnpj_cpf.set(cliente['cnpj_cpf'])
+            self.var_ambiente.set(cliente['ambiente'])
+            self.var_vpn.set("Sim" if cliente['vpn'] else "Não")
+            self.var_ad.set(cliente['ad'])
+            
+            # --- Correção Aba SGBD ---
+            # Removemos a restrição estrita para que, independentemente do que vem da base, apareça.
+            self.var_sgbd.set(cliente.get('sgbd', ''))
+            self.var_sgbd_versao.set(cliente.get('versao', ''))
+            self.var_sgbd_user.set(cliente.get('usuario_banco', ''))
+            self.var_sgbd_senha.set(cliente.get('senha_banco', ''))
+            
+            hqbird_valor = cliente.get('hqbird', 'Não')
+            self.var_sgbd_hqbird.set(True if hqbird_valor == 'Sim' else False)
+            
+            servidores = dao.buscar_servidores(self.cliente_id)
+            for serv in servidores:
+                self.tabela_serv.insert('', 'end', values=(
+                    serv['tipo'], serv['hostname'], serv['ip_privado'], 
+                    serv['ip_publico'], serv['porta'], serv['usuario'], serv['senha']
+                ))
